@@ -20,8 +20,10 @@ os.makedirs(DOWNLOAD_PATH, exist_ok=True)
 # === Selenium ===
 def setup_driver():
     chrome_options = Options()
-    chrome_options.add_argument(f'--window-size=1200,800')
-    chrome_options.add_argument(f'--user-agent=Mozilla/5.0')
+    # wskazujemy lokalizację Chromium na ubuntu-latest
+    chrome_options.binary_location = "/usr/bin/chromium-browser"
+    chrome_options.add_argument('--window-size=1200,800')
+    chrome_options.add_argument('--user-agent=Mozilla/5.0')
     chrome_options.add_experimental_option('prefs', {
         "download.default_directory": DOWNLOAD_PATH,
         "download.prompt_for_download": False,
@@ -39,24 +41,16 @@ def login(driver):
     password_input.send_keys(LOD_PASSWORD)
     btn = form.find_element(By.CSS_SELECTOR, "button[type=submit], button")
     btn.click()
-    # poczekaj aż dashboard się załaduje
     wait.until(EC.url_contains("/dashboard"))
 
 def download_all_csvs(driver):
     tabs = ["Next arrivals", "Next departures", "Currently staying"]
     for tab in tabs:
-        # klikamy odpowiedni tab
         driver.find_element(By.XPATH, f"//div[contains(text(), '{tab}')]").click()
         time.sleep(3)
-        # klikamy button "Download …"
-        btn = driver.find_element(By.XPATH,
-            "//button[contains(., 'Download')]"
-        )
-        btn.click()
-        # poczekaj na ściągnięcie pliku
+        driver.find_element(By.XPATH, "//button[contains(., 'Download')]").click()
         time.sleep(5)
 
-# === Google Drive upload ===
 def drive_service():
     creds = service_account.Credentials.from_service_account_file(
         'client_secret.json',
@@ -66,8 +60,8 @@ def drive_service():
 
 def upload_files(service):
     for fn in os.listdir(DOWNLOAD_PATH):
-        full = os.path.join(DOWNLOAD_PATH, fn)
         if fn.lower().endswith('.csv'):
+            full = os.path.join(DOWNLOAD_PATH, fn)
             meta = {'name': fn, 'parents': [FOLDER_ID]}
             media = MediaFileUpload(full, mimetype='text/csv')
             service.files().create(body=meta, media_body=media).execute()
@@ -77,7 +71,6 @@ def clear_downloads():
     for f in os.listdir(DOWNLOAD_PATH):
         os.remove(os.path.join(DOWNLOAD_PATH, f))
 
-# === Main ===
 if __name__ == "__main__":
     driver = setup_driver()
     try:
